@@ -140,7 +140,47 @@ jobs:
           df -h /
           echo ""
 
+      - name: Prepare C++ build
+        uses: ./rust/.github/actions/archery-peer-build
+        with:
+          language: CPP
+          source: .
+          paths: /build/cpp
+          # Upstream's C++ build also installs into ARROW_HOME.
+          after-restore: cmake --install /build/cpp && ldconfig
+      - name: Prepare Go build
+        uses: ./rust/.github/actions/archery-peer-build
+        with:
+          language: GO
+          source: go
+          paths: /build/go go/arrow/internal/cdata_integration
+      - name: Prepare Java build
+        uses: ./rust/.github/actions/archery-peer-build
+        with:
+          language: JAVA
+          source: java
+          paths: /build/java
+      - name: Prepare JavaScript build
+        uses: ./rust/.github/actions/archery-peer-build
+        with:
+          language: JS
+          source: js
+          paths: /build/js
+      - name: Prepare nanoarrow build
+        uses: ./rust/.github/actions/archery-peer-build
+        with:
+          language: NANOARROW
+          source: nanoarrow
+          paths: /build/nanoarrow
+
       - name: Build
+        env:
+          # Built and cached above. The Run step still tests every language.
+          ARCHERY_INTEGRATION_WITH_CPP: "0"
+          ARCHERY_INTEGRATION_WITH_GO: "0"
+          ARCHERY_INTEGRATION_WITH_JAVA: "0"
+          ARCHERY_INTEGRATION_WITH_JS: "0"
+          ARCHERY_INTEGRATION_WITH_NANOARROW: "0"
         run: conda run --no-capture-output ci/scripts/integration_arrow_build.sh $PWD /build
 
       - name: Monitor disk usage - After build
