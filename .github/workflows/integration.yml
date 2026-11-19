@@ -24,7 +24,19 @@ jobs:
     container:
       image: apache/arrow-dev:amd64-conda-integration
     env:
-      ARROW_USE_CCACHE: OFF
+      # Same compiler cache settings as apache/arrow's conda-integration service.
+      ARROW_USE_CCACHE: ON
+      CCACHE_COMPILERCHECK: content
+      CCACHE_COMPRESS: 1
+      CCACHE_COMPRESSLEVEL: 6
+      CCACHE_MAXSIZE: 1.5G
+      CCACHE_DIR: /__w/.docker/ccache
+      CCACHE_NOHASHDIR: 1
+      # Package manager downloads, kept next to the compiler cache.
+      GOMODCACHE: /__w/.docker/go-mod
+      GOCACHE: /__w/.docker/go-build
+      npm_config_cache: /__w/.docker/npm
+      MAVEN_OPTS: -Dmaven.repo.local=/__w/.docker/m2
       ARROW_CPP_EXE_PATH: /build/cpp/debug
       ARROW_NANOARROW_PATH: /build/nanoarrow
       ARROW_RUST_EXE_PATH: /build/rust/debug
@@ -140,9 +152,20 @@ jobs:
           df -h /
           echo ""
 
+      - name: Cache build caches
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: /__w/.docker
+          key: archery-a-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: archery-a-
       - name: Build
         run: conda run --no-capture-output ci/scripts/integration_arrow_build.sh $PWD /build
 
+      - name: Cache statistics
+        if: always()
+        run: |
+          conda run --no-capture-output ccache -s || true
+          du -sh /__w/.docker/* || true
       - name: Monitor disk usage - After build
         if: always()
         run: |
